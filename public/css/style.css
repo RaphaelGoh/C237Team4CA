@@ -1,0 +1,48 @@
+/* style.css */
+
+/* Font and Color Theme for Korean Look */
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background-color: #fdfcfa;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* Header Styling */
+.navbar {
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Hero Section */
+.hero {
+  background-image: url('/images/korean-hero.jpg');
+  background-size: cover;
+  background-position: center;
+  padding: 100px 0;
+  text-align: center;
+  color: white;
+}
+
+/* Buttons */
+.btn-korean {
+  background-color: #e0bfb8;
+  color: #fff;
+  border-radius: 30px;
+  padding: 10px 25px;
+  transition: all 0.3s ease;
+}
+
+.btn-korean:hover {
+  background-color: #d39fa3;
+  color: #fff;
+}
+
+/* Footer */
+footer {
+  background-color: #f8f8f8;
+  text-align: center;
+  padding: 20px 0;
+  font-size: 0.9rem;
+  color: #888;
+}
