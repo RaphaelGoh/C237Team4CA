@@ -76,6 +76,21 @@ app.post('/login', (req, res) => {
   });
 });
 
+//Temp inventory Route For Testing - Irfan
+app.get('/inventory', (req, res) => {
+  db.query('SELECT * FROM products', (err, products) => {
+    if (err) {
+      console.error('Error fetching products:', err);
+      return res.status(500).send('Error fetching inventory from database.');
+    }
+    // Pass both products and the user session object to the template
+    res.render('inventory', { 
+      products: products, 
+      user: req.session.user || null 
+    });
+  });
+});
+
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/login');
   res.render('dashboard', { user: req.session.user });
