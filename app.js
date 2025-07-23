@@ -2,25 +2,12 @@ const express = require('express');
 const path = require('path');
 const mysql = require('mysql2');
 const session = require('express-session');
-const bcrypt = require('bcryptjs');
-const multer = require('multer');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Set up multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'public/images'); // Directory to save uploaded files
-    },
-    filename: (req, file, cb) => {
-        cb(null, file.originalname); 
-    }
-});
-
-const upload = multer({ storage: storage });
-
-// DB connection
+// Connect to MySQL
 const db = mysql.createConnection({
   host: 'c237-boss.mysql.database.azure.com',
   user: 'c237boss',
@@ -30,209 +17,101 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
-    console.error('Database connection error:', err);
+    console.error('Database connection failed:', err);
     process.exit(1);
   }
-  console.log('Connected to SQL database');
+  console.log('✅ Connected to MySQL Database');
 });
 
+// Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-  secret: 'supersecret',
+  secret: 'gangnam-spice-secret',
   resave: false,
   saveUninitialized: true
 }));
 app.set('view engine', 'ejs');
 
-//TO DO: Insert code for Session Middleware below 
-app.use(session({
-    secret: 'secret',
-    resave: false,
-    saveUninitialized: true,
-    // Session expires after 1 week of inactivity
-    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 } 
-}));
-
-
-// Middleware to check if user is logged in
-const checkAuthenticated = (req, res, next) => {
-    if (req.session.user) {
-        return next();
-    } else {
-        req.flash('error', 'Please log in to view this resource');
-        res.redirect('/login');
-    }
-};
-
-// Middleware to check if user is admin
-const checkAdmin = (req, res, next) => {
-    if (req.session.user.role === 'admin') {
-        return next();
-    } else {
-        req.flash('error', 'Access denied');
-        res.redirect('/shopping');
-    }
-};
-
-// Middleware for form validation
-const validateRegistration = (req, res, next) => {
-    const { username, email, password, address, contact, role } = req.body;
-
-    if (!username || !email || !password || !address || !contact || !role) {
-        return res.status(400).send('All fields are required.');
-    }
-    
-    if (password.length < 6) {
-        req.flash('error', 'Password should be at least 6 or more characters long');
-        req.flash('formData', req.body);
-        return res.redirect('/register');
-    }
-    next();
-};
-
-// Routes
-app.get('/',  (req, res) => {
-    res.render('index', {user: req.session.user} );
+// Homepage → redirect to login
+app.get('/', (req, res) => {
+  res.redirect('/login');
 });
 
+// Render Login Page
 app.get('/login', (req, res) => {
   res.render('login', { message: null });
 });
 
+// Render Signup Page
 app.get('/signup', (req, res) => {
   res.render('signup', { message: null });
 });
 
+// Handle Signup
 app.post('/signup', async (req, res) => {
-  const { username, password, role } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
-  db.query('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 
-    [username, hashedPassword, role], 
-    (err) => {
-      if (err) return res.render('signup', { message: 'Signup failed.' });
+  const { username, email, password, address, contact, role } = req.body;
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const sql = `
+      INSERT INTO users (username, email, password, address, contact, role)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    db.query(sql, [username, email, hashedPassword, address, contact, role], (err, result) => {
+      if (err) {
+        console.error('Signup error:', err);
+        return res.render('signup', { message: 'Signup failed. Please try again.' });
+      }
       res.redirect('/login');
-  });
+    });
+  } catch (error) {
+    console.error('Hashing error:', error);
+    res.render('signup', { message: 'Error processing password.' });
+  }
 });
 
+// Handle Login
 app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
+  const { email, password } = req.body;
+
+  const sql = 'SELECT * FROM users WHERE email = ?';
+  db.query(sql, [email], async (err, results) => {
     if (err || results.length === 0) {
-      return res.render('login', { message: 'Invalid username or password.' });
+      return res.render('login', { message: 'Invalid email or password.' });
     }
 
     const user = results[0];
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (isMatch) {
-      req.session.user = { id: user.id, role: user.role };
-      return res.redirect('/dashboard');
+      req.session.user = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      };
+      res.redirect('/dashboard');
     } else {
-      return res.render('login', { message: 'Invalid username or password.' });
+      res.render('login', { message: 'Invalid email or password.' });
     }
   });
 });
 
-//Inventory Route (Test)- Irfan
-app.get('/inventory', (req, res) => {
-  db.query('SELECT * FROM products', (err, products) => {
-    if (err) {
-      console.error('Error fetching products:', err);
-      return res.status(500).send('Error fetching inventory from database.');
-    }
-    // Pass both products and the user session object to the template
-    res.render('inventory', { 
-      products: products, 
-      user: req.session.user || null 
-    });
-  });
-});
-
-
-//UpdateProduct Route (Edit Inventory) - Irfan (NOT FINISHED)
-//app.get('/updateProduct/:id', upload.single('image'), (req, res) => {
-//const productId = req.params.id;
-//  const sql = 'SELECT * FROM products WHERE productId = ?';
-
-    // Fetch data from MySQL based on the product ID
-//  connection.query(sql , [productId], (error, results) => {
-//    if (error) throw error;
-
-        // Check if any product with the given ID was found
-//        if (results.length > 0) {
-            // Render HTML page with the product data
-//            res.render('updateProduct', { product: results[0] });
-//        } else {
-            // If no product with the given ID was found, render a 404 page or handle it accordingly
-//            res.status(404).send('Product not found');
-//        }
-//    });
-//});
-//app.post('/updateProduct/:id', (req, res) => {
-
-
-//DeleteProduct Route (Delete Inventory) - Irfan (NOT FINISHED)
-//app.get('/deleteProduct/:id', (req, res) => {
-
-app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/');
-});
-
-app.get('/product/:id', (req, res) => {
-  // Extract the product ID from the request parameters
-  const productId = req.params.id;
-
-  // Fetch data from MySQL based on the product ID
-  connection.query('SELECT * FROM products WHERE productId = ?', [productId], (error, results) => {
-      if (error) throw error;
-
-      // Check if any product with the given ID was found
-      if (results.length > 0) {
-          // Render HTML page with the product data
-          res.render('product', { product: results[0], user: req.session.user  });
-      } else {
-          // If no product with the given ID was found, render a 404 page or handle it accordingly
-          res.status(404).send('Product not found');
-      }
-  });
-});
-
-app.get('/addProduct', (req, res) => {
-    res.render('addProduct', {user: req.session.user } ); 
-});
-
-app.post('/addProduct', upload.single('image'),  (req, res) => {
-    // Extract product data from the request body
-    const { name, quantity, price} = req.body;
-    let image;
-    if (req.file) {
-        image = req.file.filename; // Save only the filename
-    } else {
-        image = null;
-    }
-
-    const sql = 'INSERT INTO products (productName, quantity, price, image) VALUES (?, ?, ?, ?)';
-    // Insert the new product into the database
-    connection.query(sql , [name, quantity, price, image], (error, results) => {
-        if (error) {
-            // Handle any error that occurs during the database operation
-            console.error("Error adding product:", error);
-            res.status(500).send('Error adding product');
-        } else {
-            // Send a success response
-            res.redirect('/inventory');
-        }
-    });
-});
-
-
+// Dashboard (protected)
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/login');
   res.render('dashboard', { user: req.session.user });
 });
 
+// Logout
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.redirect('/login');
+  });
+});
+
+// Start Server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Gangnam Spice running at http://localhost:${PORT}`);
 });
