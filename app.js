@@ -33,6 +33,42 @@ app.use(session({
 }));
 app.set('view engine', 'ejs');
 
+// Middleware to check if user is logged in
+const checkAuthenticated = (req, res, next) => {
+    if (req.session.user) {
+        return next();
+    } else {
+        req.flash('error', 'Please log in to view this resource');
+        res.redirect('/login');
+    }
+};
+
+// Middleware to check if user is admin
+const checkAdmin = (req, res, next) => {
+    if (req.session.user.role === 'admin') {
+        return next();
+    } else {
+        req.flash('error', 'Access denied');
+        res.redirect('/shopping');
+    }
+};
+
+// Middleware for form validation
+const validateRegistration = (req, res, next) => {
+    const { username, email, password, address, contact, role } = req.body;
+
+    if (!username || !email || !password || !address || !contact || !role) {
+        return res.status(400).send('All fields are required.');
+    }
+    
+    if (password.length < 6) {
+        req.flash('error', 'Password should be at least 6 or more characters long');
+        req.flash('formData', req.body);
+        return res.redirect('/register');
+    }
+    next();
+};
+
 // Routes
 app.get('/',  (req, res) => {
     res.render('index', {user: req.session.user} );
@@ -103,6 +139,33 @@ app.get('/inventory', (req, res) => {
 //app.get('/deleteProduct/:id', (req, res) => {
 
 
+app.get('/addProduct', checkAuthenticated, checkAdmin, (req, res) => {
+    res.render('addProduct', {user: req.session.user } ); 
+});
+
+app.post('/addProduct', upload.single('image'),  (req, res) => {
+    // Extract product data from the request body
+    const { name, quantity, price} = req.body;
+    let image;
+    if (req.file) {
+        image = req.file.filename; // Save only the filename
+    } else {
+        image = null;
+    }
+
+    const sql = 'INSERT INTO products (productName, quantity, price, image) VALUES (?, ?, ?, ?)';
+    // Insert the new product into the database
+    connection.query(sql , [name, quantity, price, image], (error, results) => {
+        if (error) {
+            // Handle any error that occurs during the database operation
+            console.error("Error adding product:", error);
+            res.status(500).send('Error adding product');
+        } else {
+            // Send a success response
+            res.redirect('/inventory');
+        }
+    });
+});
 
 
 app.get('/dashboard', (req, res) => {
