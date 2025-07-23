@@ -44,8 +44,8 @@ const checkAdmin = (req, res, next) => {
 };
 
 // Routes
-app.get('/', (req, res) => {
-  res.redirect('/login');
+app.get('/',  (req, res) => {
+    res.render('index', {user: req.session.user} );
 });
 
 app.get('/login', (req, res) => {
