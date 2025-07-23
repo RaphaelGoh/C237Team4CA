@@ -135,7 +135,7 @@ app.post('/login', (req, res) => {
 });
 
 //Inventory Route (Test)- Irfan
-app.get('/inventory',checkAdmin, (req, res) => {
+app.get('/inventory', (req, res) => {
   db.query('SELECT * FROM products', (err, products) => {
     if (err) {
       console.error('Error fetching products:', err);
