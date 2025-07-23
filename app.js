@@ -175,6 +175,29 @@ app.get('/inventory',checkAdmin, (req, res) => {
 //DeleteProduct Route (Delete Inventory) - Irfan (NOT FINISHED)
 //app.get('/deleteProduct/:id', (req, res) => {
 
+app.get('/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
+});
+
+app.get('/product/:id', checkAuthenticated, (req, res) => {
+  // Extract the product ID from the request parameters
+  const productId = req.params.id;
+
+  // Fetch data from MySQL based on the product ID
+  connection.query('SELECT * FROM products WHERE productId = ?', [productId], (error, results) => {
+      if (error) throw error;
+
+      // Check if any product with the given ID was found
+      if (results.length > 0) {
+          // Render HTML page with the product data
+          res.render('product', { product: results[0], user: req.session.user  });
+      } else {
+          // If no product with the given ID was found, render a 404 page or handle it accordingly
+          res.status(404).send('Product not found');
+      }
+  });
+});
 
 app.get('/addProduct', checkAuthenticated, checkAdmin, (req, res) => {
     res.render('addProduct', {user: req.session.user } ); 
