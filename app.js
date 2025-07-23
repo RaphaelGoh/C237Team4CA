@@ -76,7 +76,7 @@ app.post('/login', (req, res) => {
   });
 });
 
-//Temp inventory Route For Testing - Irfan
+//Inventory Route (Test)- Irfan
 app.get('/inventory', (req, res) => {
   db.query('SELECT * FROM products', (err, products) => {
     if (err) {
@@ -90,6 +90,20 @@ app.get('/inventory', (req, res) => {
     });
   });
 });
+
+
+//UpdateProduct Route (Edit Inventory) - Irfan (NOT FINISHED)
+//app.get('/updateProduct/:id', (req, res) => {
+
+
+//app.post('/updateProduct/:id', (req, res) => {
+
+
+//DeleteProduct Route (Delete Inventory) - Irfan (NOT FINISHED)
+//app.get('/deleteProduct/:id', (req, res) => {
+
+
+
 
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/login');
