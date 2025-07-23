@@ -3,10 +3,22 @@ const path = require('path');
 const mysql = require('mysql2');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
-
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Set up multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'public/images'); // Directory to save uploaded files
+    },
+    filename: (req, file, cb) => {
+        cb(null, file.originalname); 
+    }
+});
+
+const upload = multer({ storage: storage });
 
 // DB connection
 const db = mysql.createConnection({
@@ -32,6 +44,16 @@ app.use(session({
   saveUninitialized: true
 }));
 app.set('view engine', 'ejs');
+
+//TO DO: Insert code for Session Middleware below 
+app.use(session({
+    secret: 'secret',
+    resave: false,
+    saveUninitialized: true,
+    // Session expires after 1 week of inactivity
+    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 } 
+}));
+
 
 // Middleware to check if user is logged in
 const checkAuthenticated = (req, res, next) => {
