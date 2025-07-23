@@ -180,7 +180,7 @@ app.get('/logout', (req, res) => {
     res.redirect('/');
 });
 
-app.get('/product/:id', checkAuthenticated, (req, res) => {
+app.get('/product/:id', (req, res) => {
   // Extract the product ID from the request parameters
   const productId = req.params.id;
 
