@@ -33,42 +33,6 @@ app.use(session({
 }));
 app.set('view engine', 'ejs');
 
-// Middleware to check if user is logged in
-const checkAuthenticated = (req, res, next) => {
-    if (req.session.user) {
-        return next();
-    } else {
-        req.flash('error', 'Please log in to view this resource');
-        res.redirect('/login');
-    }
-};
-
-// Middleware to check if user is admin
-const checkAdmin = (req, res, next) => {
-    if (req.session.user.role === 'admin') {
-        return next();
-    } else {
-        req.flash('error', 'Access denied');
-        res.redirect('/shopping');
-    }
-};
-
-// Middleware for form validation
-const validateRegistration = (req, res, next) => {
-    const { username, email, password, address, contact, role } = req.body;
-
-    if (!username || !email || !password || !address || !contact || !role) {
-        return res.status(400).send('All fields are required.');
-    }
-    
-    if (password.length < 6) {
-        req.flash('error', 'Password should be at least 6 or more characters long');
-        req.flash('formData', req.body);
-        return res.redirect('/register');
-    }
-    next();
-};
-
 // Routes
 app.get('/',  (req, res) => {
     res.render('index', {user: req.session.user} );
@@ -113,7 +77,7 @@ app.post('/login', (req, res) => {
 });
 
 //Inventory Route (Test)- Irfan
-app.get('/inventory', (req, res) => {
+app.get('/inventory',checkAdmin, (req, res) => {
   db.query('SELECT * FROM products', (err, products) => {
     if (err) {
       console.error('Error fetching products:', err);
@@ -129,9 +93,24 @@ app.get('/inventory', (req, res) => {
 
 
 //UpdateProduct Route (Edit Inventory) - Irfan (NOT FINISHED)
-//app.get('/updateProduct/:id', (req, res) => {
+//app.get('/updateProduct/:id', upload.single('image'), (req, res) => {
+//const productId = req.params.id;
+//  const sql = 'SELECT * FROM products WHERE productId = ?';
 
+    // Fetch data from MySQL based on the product ID
+//  connection.query(sql , [productId], (error, results) => {
+//    if (error) throw error;
 
+        // Check if any product with the given ID was found
+//        if (results.length > 0) {
+            // Render HTML page with the product data
+//            res.render('updateProduct', { product: results[0] });
+//        } else {
+            // If no product with the given ID was found, render a 404 page or handle it accordingly
+//            res.status(404).send('Product not found');
+//        }
+//    });
+//});
 //app.post('/updateProduct/:id', (req, res) => {
 
 
