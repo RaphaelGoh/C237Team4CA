@@ -33,7 +33,7 @@ db.connect(err => {
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 app.use(session({
   secret: 'gangnam-spice-secret',
   resave: false,
@@ -54,7 +54,9 @@ const checkAdmin = (req, res, next) => {
 };
 
 // Routes
-app.get('/', (req, res) => res.redirect('/login'));
+app.get('/',  (req, res) => {
+    res.render('index', {user: req.session.user} );
+});
 
 // Login
 app.get('/login', (req, res) => {
