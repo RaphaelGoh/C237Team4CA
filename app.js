@@ -314,7 +314,24 @@ app.get('/product/:id', (req, res) => {
   });
 });
 
+// CONTACT US
+app.get('/contact', (req, res) => {
+    // temp null message
+    res.render('contact', { message: null });
+});
 
+app.post('/contact', (req, res) => {
+    const { name, email, number, message } = req.body;
+    const query = 'INSERT INTO messages (name, email, number, message) VALUES (?, ?, ?, ?)';
+
+    db.query(query, [name, email, number, message], (err, result) => {
+        if (err) {
+            console.error('Error saving message:', err);
+            return res.render('contact', { message: 'Sorry, there was an error sending your message.' });
+        }
+        res.render('contact', { message: 'Thank you for your message! We will get back to you soon.' });
+    });
+});
 
 
 // Start Server
