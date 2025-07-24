@@ -33,7 +33,7 @@ db.connect(err => {
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: 'gangnam-spice-secret',
   resave: false,
