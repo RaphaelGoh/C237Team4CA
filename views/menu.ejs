@@ -14,11 +14,15 @@
       height: 180px;
       object-fit: cover;
     }
+    #suggestionList {
+      max-height: 200px;
+      overflow-y: auto;
+    }
   </style>
 </head>
-
 <body>
-  <!-- navbar -->
+
+  <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
     <div class="container">
       <a class="navbar-brand fw-bold text-danger" href="/">Gangnam Spice</a>
@@ -27,65 +31,68 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="/contact">Contact Us</a>
+          <li class="nav-item">
+            <a class="nav-link" href="/logout">Logout</a>
+          </li>
         </ul>
       </div>
     </div>
   </nav>
 
-  <!-- search bar -->
-  <!-- Live Search Bar -->
+  <!-- Search Bar -->
 <div class="container my-4">
-  <div class="input-group">
-    <input type="text" id="searchInput" class="form-control" placeholder="Search product name..." autocomplete="off" />
-    <ul class="list-group position-absolute w-100" id="suggestionList" style="z-index: 999;"></ul>
-  </div>
+  <form action="/search" method="POST" class="input-group">
+    <input type="text" name="searchTerm" class="form-control" placeholder="Search for a dish..." required>
+    <button class="btn btn-danger" type="submit">Search</button>
+  </form>
 </div>
 
-<script>
-  const searchInput = document.getElementById('searchInput');
-  const suggestionList = document.getElementById('suggestionList');
 
-  searchInput.addEventListener('input', async () => {
-    const keyword = searchInput.value.trim();
 
-    if (keyword.length < 2) {
-      suggestionList.innerHTML = '';
-      return;
-    }
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    const suggestionList = document.getElementById('suggestionList');
 
-    try {
-      const res = await fetch(`/api/search?term=${keyword}`);
-      const data = await res.json();
+    searchInput.addEventListener('input', async () => {
+      const keyword = searchInput.value.trim();
 
-      suggestionList.innerHTML = '';
-
-      if (data.length === 0) {
-        suggestionList.innerHTML = '<li class="list-group-item text-muted">No matches</li>';
-      } else {
-        data.forEach(product => {
-          const li = document.createElement('li');
-          li.className = 'list-group-item list-group-item-action';
-          li.textContent = product.productName;
-          li.onclick = () => window.location.href = `/product/${product.productid}`;
-          suggestionList.appendChild(li);
-        });
+      if (keyword.length < 2) {
+        suggestionList.innerHTML = '';
+        return;
       }
-    } catch (err) {
-      console.error('Error:', err);
-    }
-  });
 
-  // Hide suggestions on outside click
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.input-group')) {
-      suggestionList.innerHTML = '';
-    }
-  });
-</script>
+      try {
+        const res = await fetch(`/api/search?term=${keyword}`);
+        const data = await res.json();
 
+        suggestionList.innerHTML = '';
 
-  <!-- category buttons -->
+        if (data.length === 0) {
+          suggestionList.innerHTML = '<li class="list-group-item text-muted">No matches</li>';
+        } else {
+          data.forEach(product => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action';
+            li.textContent = product.productName;
+            li.onclick = () => window.location.href = `/product/${product.productid}`;
+            suggestionList.appendChild(li);
+          });
+        }
+      } catch (err) {
+        console.error('Error:', err);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.input-group')) {
+        suggestionList.innerHTML = '';
+      }
+    });
+  </script>
+
+  <!-- Category Buttons -->
   <div class="container text-center my-4">
     <a href="#starters" class="btn btn-outline-secondary mx-2">Starters</a>
     <a href="#sides" class="btn btn-outline-secondary mx-2">Sides</a>
@@ -95,7 +102,7 @@
     <a href="#setmeals" class="btn btn-outline-secondary mx-2">Set Meals</a>
   </div>
 
-  <!-- welcome message -->
+  <!-- Welcome Message -->
   <div class="text-center mb-4">
     <h2>Menu</h2>
     <% if (user) { %>
@@ -103,7 +110,7 @@
     <% } %>
   </div>
 
-  <!-- cards rendered by category -->
+  <!-- Dynamic Category Rendering -->
   <% function renderCategory(categoryId, categoryName) { %>
     <div class="container my-5 px-4">
       <h3 id="<%= categoryId %>"><%= categoryName %></h3>
@@ -111,13 +118,13 @@
         <% products.filter(p => p.category === categoryId).forEach(product => { %>
           <div class="col">
             <div class="card h-100">
-              <img src="/images/<%= product.image %>" alt="<%= product.productName %>" class="card-img-top" onerror="this.src='https://placehold.co/300x180?text=No+Image';" />
+              <img src="/images/<%= product.image %>" alt="<%= product.productName %>" class="card-img-top">
               <div class="card-body d-flex flex-column">
                 <h5 class="card-title"><%= product.productName %></h5>
                 <p class="card-text text-truncate"><%= product.description %></p>
                 <div class="mt-auto d-flex justify-content-between">
-                  <a href="/product/<%= product.productid %>" class="btn btn-sm btn-outline-primary">More Details</a>
-                  <form action="/cart/add/<%= product.productid %>" method="POST" class="m-0">
+                  <a href="/product/<%= product.productId %>" class="btn btn-sm btn-outline-danger">More Details</a>
+                  <form action="/cart/add/<%= product.productId %>" method="POST" class="m-0">
                     <button type="submit" class="btn btn-sm btn-outline-success">Add to Cart</button>
                   </form>
                 </div>
@@ -129,7 +136,6 @@
     </div>
   <% } %>
 
-  <!-- rendering categories -->
   <% renderCategory('starters', 'Starters'); %>
   <% renderCategory('sides', 'Sides'); %>
   <% renderCategory('main-course', 'Main Course'); %>
@@ -137,6 +143,9 @@
   <% renderCategory('desserts', 'Desserts'); %>
   <% renderCategory('setmeals', 'Set Meals'); %>
 
+
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+

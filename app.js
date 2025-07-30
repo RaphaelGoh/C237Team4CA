@@ -197,7 +197,12 @@ app.get('/deleteProduct/:id', checkAuthenticated, checkAdmin, (req, res) => {
 // Menu
 app.get('/menu', checkAuthenticated, (req, res) => {
   db.query('SELECT * FROM products', (err, products) => {
-    if (err) return res.status(500).send('Failed to load products.');
+    if (err) {
+      console.error('Failed to load products:', err);
+      return res.status(500).send('Failed to load products.');
+    }
+
+    console.log('Products fetched:', products); // Debugging output
     res.render('menu', { user: req.session.user, products });
   });
 });
@@ -205,22 +210,216 @@ app.get('/menu', checkAuthenticated, (req, res) => {
 // Search
 app.post('/search', checkAuthenticated, (req, res) => {
   const searchTerm = `%${req.body.searchTerm}%`;
+  console.log('Search term:', req.body.searchTerm); 
+
   db.query(
-    'SELECT * FROM products WHERE productName LIKE ? OR description LIKE ?',
-    [searchTerm, searchTerm],
-    (err, results) => {
-      if (err) return res.status(500).send('Error searching products.');
-      res.render('menu', { user: req.session.user, products: results });
+  'SELECT * FROM products WHERE productName LIKE ?',
+  [searchTerm],
+  (err, results) => {
+    if (err) {
+      console.error('DB error:', err);
+      return res.status(500).send('Error searching products.');
     }
-  );
+    res.render('searchResults', {
+      user: req.session.user,
+      searchTerm: req.body.searchTerm,
+      products: results
+    });
+  }
+);
+});
+// Checkout
+app.get('/checkout', (req, res) => {
+  const cart = req.session.cart || []; // adjust based on your session handling
+  const user = req.session.user;
+  console.log("Checkout user:", user);
+  res.render('checkout', { cart, user });
+
 });
 
-app.get('/api/search', (req, res) => {
-  const sql = `SELECT productId, productName FROM products WHERE productName LIKE ? LIMIT 5`;
-  db.query(sql, [`${req.query.term}%`], (err, results) => {
-    if (err) return res.status(500).json([]);
-    res.json(results);
+// Confirm Order
+app.get('/confirm', (req, res) => {
+  res.render('confirm'); // Make sure you have confirm.ejs in your views folder
+});
+
+app.post('/confirm', checkAuthenticated, (req, res) => {
+  const { cardNumber } = req.body;
+  const cart = req.session.cart || [];
+  const user = req.session.user;
+
+  if (!cardNumber || cart.length === 0) {
+    return res.status(400).send('Invalid order.');
+  }
+
+  req.session.cart = [];  // clear the cart after confirmation
+
+  res.render('confirm', {
+    user,
+    message: 'Thank you for your purchase!',
+    cardNumber
   });
+});
+
+
+// Product Details
+app.get('/product/:id', (req, res) => {
+  const productId = req.params.id;
+  const query = 'SELECT * FROM products WHERE productid = ?';
+  
+  db.query(query, [productId], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Database error.');
+    }
+    if (results.length === 0) {
+      return res.status(404).send('Product not found.');
+    }
+    res.render('product', { product: results[0], user: req.session.user });
+  });
+});
+// CONTACT US
+app.get('/contact', (req, res) => {
+    // temp null message
+    res.render('contact', { message: null });
+});
+
+app.post('/contact', (req, res) => {
+    const { name, email, number, message } = req.body;
+    const query = 'INSERT INTO messages (name, email, number, message) VALUES (?, ?, ?, ?)';
+
+    db.query(query, [name, email, number, message], (err, result) => {
+        if (err) {
+            console.error('Error saving message:', err);
+            return res.render('contact', { message: 'Sorry, there was an error sending your message.' });
+        }
+        res.render('contact', { message: 'Thank you for your message! We will get back to you soon.' });
+    });
+});
+
+// ADMIN MESSAGES
+app.get('/admin-messages', checkAuthenticated, checkAdmin, (req, res) => {
+    const query = 'SELECT * FROM messages ORDER BY messageId';
+
+    db.query(query, (err, messages) => {
+        if (err) {
+            console.error('Error fetching messages:', err);
+            return res.status(500).send('Error fetching messages from database.');
+        }
+        res.render('admin-messages', { 
+            messages: messages, 
+            user: req.session.user 
+        });
+    });
+});
+
+app.get('/admin-messages/delete/:id', checkAuthenticated, checkAdmin, (req, res) => {
+    const messageId = req.params.id;
+    const query = 'DELETE FROM messages WHERE messageId = ?';
+
+    db.query(query, [messageId], (err, result) => {
+        if (err) {
+            console.error('Error deleting message:', err);
+        }
+        res.redirect('/admin-messages');
+    });
+});
+
+// Cart
+app.get('/cart', checkAuthenticated, (req, res) => {
+  res.render('cart', { cart: req.session.cart || [], user: req.session.user });
+});
+
+app.post('/cart/add/:id', checkAuthenticated, (req, res) => {
+  const productId = parseInt(req.params.id);
+
+  const sql = 'SELECT * FROM products WHERE productId = ?';
+  db.query(sql, [productId], (err, results) => {
+    if (err || results.length === 0) {
+      return res.status(500).send('Product not found.');
+    }
+
+    const product = results[0];
+    const cartItem = {
+      productId: product.productId,
+      productName: product.productName,
+      price: product.price,
+      image: product.image,
+      quantity: 1
+    };
+
+    if (!req.session.cart) req.session.cart = [];
+
+    // Check if item already in cart
+    const existing = req.session.cart.find(item => item.productId == productId);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      req.session.cart.push(cartItem);
+    }
+
+    res.redirect('/cart');
+  });
+});
+
+// Edit quantity in cart
+app.post('/cart/edit', checkAuthenticated, (req, res) => {
+  const { productIds, quantities } = req.body;
+
+  if (!req.session.cart || !productIds || !quantities) {
+    return res.redirect('/cart');
+  }
+
+  const ids = Array.isArray(productIds) ? productIds : [productIds];
+  const qtys = Array.isArray(quantities) ? quantities : [quantities];
+
+  for (let i = 0; i < ids.length; i++) {
+    const id = parseInt(ids[i]);
+    const qty = parseInt(qtys[i]);
+    const item = req.session.cart.find(p => p.productId === id);
+    if (item && qty > 0) {
+      item.quantity = qty;
+      item.total = item.price * qty;  // ✅ optional, in case you want to store per-item total
+    }
+  }
+
+  res.redirect('/cart');
+});
+
+// delete cart for User
+app.get('/cart/delete/:id', (req, res) => {
+  const productId = req.params.id;
+  if (!req.session.cart) req.session.cart = [];
+
+  req.session.cart = req.session.cart.filter(item => item.productId != productId);
+
+  res.redirect('/cart');
+});
+// ADMIN MESSAGES
+app.get('/admin-messages', checkAuthenticated, checkAdmin, (req, res) => {
+    const query = 'SELECT * FROM messages ORDER BY messageId';
+
+    db.query(query, (err, messages) => {
+        if (err) {
+            console.error('Error fetching messages:', err);
+            return res.status(500).send('Error fetching messages from database.');
+        }
+        res.render('admin-messages', { 
+            messages: messages, 
+            user: req.session.user 
+        });
+    });
+});
+
+app.get('/admin-messages/delete/:id', checkAuthenticated, checkAdmin, (req, res) => {
+    const messageId = req.params.id;
+    const query = 'DELETE FROM messages WHERE messageId = ?';
+
+    db.query(query, [messageId], (err, result) => {
+        if (err) {
+            console.error('Error deleting message:', err);
+        }
+        res.redirect('/admin-messages');
+    });
 });
 
 // Start Server
