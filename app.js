@@ -324,76 +324,146 @@ app.get('/admin-messages/delete/:id', checkAuthenticated, checkAdmin, (req, res)
     });
 });
 
-// Cart
+// Cart - Display cart items
+// GET: View Cart
 app.get('/cart', checkAuthenticated, (req, res) => {
-  res.render('cart', { cart: req.session.cart || [], user: req.session.user });
+  const userId = req.session.user.userId;
+
+  db.query('SELECT cartId FROM carts WHERE userId = ?', [userId], (err, cartRows) => {
+    if (err) {
+      console.error('Error fetching cartId:', err);
+      return res.status(500).send('Database error.');
+    }
+
+    if (cartRows.length === 0) return res.render('cart', { cart: [] });
+
+    const cartId = cartRows[0].cartId;
+
+    db.query(
+      `SELECT ci.productId, ci.quantity, p.productName, p.price, p.image
+       FROM cart_items ci
+       JOIN products p ON ci.productId = p.productId
+       WHERE ci.cartId = ?`,
+      [cartId],
+      (err, items) => {
+        if (err) {
+          console.error('Error fetching cart items:', err);
+          return res.status(500).send('Database error.');
+        }
+        res.render('cart', { cart: items });
+      }
+    );
+  });
 });
 
+
+// POST: Add to Cart
 app.post('/cart/add/:id', checkAuthenticated, (req, res) => {
   const productId = parseInt(req.params.id);
+  const userId = req.session.user.userId;
 
-  const sql = 'SELECT * FROM products WHERE productId = ?';
-  db.query(sql, [productId], (err, results) => {
-    if (err || results.length === 0) {
-      return res.status(500).send('Product not found.');
-    }
+  db.query('SELECT cartId FROM carts WHERE userId = ?', [userId], (err, cartRows) => {
+    if (err) return res.status(500).send('Database error.');
 
-    const product = results[0];
-    const cartItem = {
-      productId: product.productId,
-      productName: product.productName,
-      price: product.price,
-      image: product.image,
-      quantity: 1
-    };
-
-    if (!req.session.cart) req.session.cart = [];
-
-    // Check if item already in cart
-    const existing = req.session.cart.find(item => item.productId == productId);
-    if (existing) {
-      existing.quantity += 1;
+    if (cartRows.length === 0) {
+      db.query('INSERT INTO carts (userId) VALUES (?)', [userId], (err, result) => {
+        if (err) return res.status(500).send('Failed to create cart.');
+        const cartId = result.insertId;
+        insertOrUpdateCartItem(cartId);
+      });
     } else {
-      req.session.cart.push(cartItem);
+      const cartId = cartRows[0].cartId;
+      insertOrUpdateCartItem(cartId);
     }
+
+    function insertOrUpdateCartItem(cartId) {
+      db.query(
+        'SELECT * FROM cart_items WHERE cartId = ? AND productId = ?',
+        [cartId, productId],
+        (err, rows) => {
+          if (err) {
+            console.error('Error checking cart:', err);
+            return res.status(500).send('Error checking cart.');
+          }
+
+          if (rows.length > 0) {
+            const newQty = rows[0].quantity + 1;
+            db.query(
+              'UPDATE cart_items SET quantity = ? WHERE cartId = ? AND productId = ?',
+              [newQty, cartId, productId],
+              err => {
+                if (err) return res.status(500).send('Failed to update cart.');
+                res.redirect('/cart');
+              }
+            );
+          } else {
+            db.query(
+              'INSERT INTO cart_items (cartId, productId, quantity) VALUES (?, ?, 1)',
+              [cartId, productId],
+              err => {
+                if (err) return res.status(500).send('Failed to add item to cart.');
+                res.redirect('/cart');
+              }
+            );
+          }
+        }
+      );
+    }
+  });
+});
+
+
+// POST: Edit Cart Quantities
+app.post('/cart/edit', checkAuthenticated, (req, res) => {
+  const { productIds, quantities } = req.body;
+  const userId = req.session.user.userId;
+
+  if (!productIds || !quantities) return res.redirect('/cart');
+
+  const ids = Array.isArray(productIds) ? productIds : [productIds];
+  const qtys = Array.isArray(quantities) ? quantities : [quantities];
+
+  db.query('SELECT cartId FROM carts WHERE userId = ?', [userId], (err, cartRows) => {
+    if (err || cartRows.length === 0) return res.redirect('/cart');
+    const cartId = cartRows[0].cartId;
+
+    ids.forEach((productId, i) => {
+      const qty = parseInt(qtys[i]);
+      if (qty > 0) {
+        db.query(
+          'UPDATE cart_items SET quantity = ? WHERE cartId = ? AND productId = ?',
+          [qty, cartId, productId]
+        );
+      }
+    });
 
     res.redirect('/cart');
   });
 });
 
-// Edit quantity in cart
-app.post('/cart/edit', checkAuthenticated, (req, res) => {
-  const { productIds, quantities } = req.body;
 
-  if (!req.session.cart || !productIds || !quantities) {
-    return res.redirect('/cart');
-  }
+// GET: Delete from Cart
+app.get('/cart/delete/:id', checkAuthenticated, (req, res) => {
+  const userId = req.session.user.userId;
+  const productId = parseInt(req.params.id);
 
-  const ids = Array.isArray(productIds) ? productIds : [productIds];
-  const qtys = Array.isArray(quantities) ? quantities : [quantities];
+  db.query('SELECT cartId FROM carts WHERE userId = ?', [userId], (err, cartRows) => {
+    if (err || cartRows.length === 0) return res.redirect('/cart');
+    const cartId = cartRows[0].cartId;
 
-  for (let i = 0; i < ids.length; i++) {
-    const id = parseInt(ids[i]);
-    const qty = parseInt(qtys[i]);
-    const item = req.session.cart.find(p => p.productId === id);
-    if (item && qty > 0) {
-      item.quantity = qty;
-      item.total = item.price * qty;  // ✅ optional, in case you want to store per-item total
-    }
-  }
-
-  res.redirect('/cart');
+    db.query(
+      'DELETE FROM cart_items WHERE cartId = ? AND productId = ?',
+      [cartId, productId],
+      err => {
+        if (err) console.error('Delete failed:', err);
+        res.redirect('/cart');
+      }
+    );
+  });
 });
 
-// delete cart for User
-app.get('/cart/delete/:id', (req, res) => {
-  const productId = req.params.id;
-  if (!req.session.cart) req.session.cart = [];
 
-  req.session.cart = req.session.cart.filter(item => item.productId != productId);
 
-  res.redirect('/cart');
-});
 // ADMIN MESSAGES
 app.get('/admin-messages', checkAuthenticated, checkAdmin, (req, res) => {
     const query = 'SELECT * FROM messages ORDER BY messageId';
