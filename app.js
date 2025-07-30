@@ -78,7 +78,9 @@ app.post('/login', (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        address: user.address,
+        contact: user.contact
       };
       return res.redirect(user.role === 'admin' ? '/admin-dashboard' : '/menu');
     }
