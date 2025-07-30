@@ -1,54 +1,71 @@
-<%- include('partials/header') %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Your Cart</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="/styles/cart.css">
+</head>
+<body>
 
-<div class="container mt-5">
-  <h2 class="mb-4">Your Cart</h2>
+<div class="w3-container w3-padding-32">
+  <div class="w3-card-4 w3-padding">
+    <h2 class="w3-center w3-text-teal">Your Cart</h2>
 
-  <% if (cart.length === 0) { %>
-    <p>Your cart is empty.</p>
-  <% } else { %>
-    <form action="/cart/edit" method="POST">
-      <table class="table table-bordered">
-        <thead>
-          <tr>
-            <th>Image</th>
-            <th>Product</th>
-            <th>Price (SGD)</th>
-            <th>Quantity</th>
-            <th>Total</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% let grandTotal = 0; %>
-          <% cart.forEach(item => { %>
-            <% let itemTotal = item.price * item.quantity; %>
-            <% grandTotal += itemTotal; %>
-            <tr>
-              <td><img src="<%= item.image %>" alt="<%= item.productName %>" style="width: 60px;"></td>
-              <td><%= item.productName %></td>
-              <td>$<%= item.price.toFixed(2) %></td>
-              <td>
-                <input type="hidden" name="productIds" value="<%= item.productId %>">
-                <input type="number" name="quantities" value="<%= item.quantity %>" min="1" class="form-control" style="width: 80px;">
-              </td>
-              <td>$<%= itemTotal.toFixed(2) %></td>
-              <td>
-                <a href="/cart/delete/<%= item.productId %>" class="btn btn-sm btn-danger">Remove</a>
-              </td>
+    <% if (cart.length === 0) { %>
+      <p class="w3-center w3-large w3-text-gray">Your cart is empty.</p>
+    <% } else { %>
+      <form action="/cart/edit" method="POST">
+        <table class="w3-table-all w3-hoverable w3-small">
+          <thead>
+            <tr class="w3-teal">
+              <th>Image</th>
+              <th>Product</th>
+              <th>Price (SGD)</th>
+              <th style="width:100px;">Quantity</th>
+              <th>Total</th>
+              <th>Action</th>
             </tr>
-          <% }); %>
-          <tr>
-            <td colspan="4" class="text-end fw-bold">Grand Total:</td>
-            <td colspan="2" class="fw-bold">$<%= grandTotal.toFixed(2) %></td>
-          </tr>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <% let grandTotal = 0; %>
+            <% cart.forEach(item => { %>
+              <% let itemTotal = item.price * item.quantity; %>
+              <% grandTotal += itemTotal; %>
+              <tr>
+                <td>
+                  <% if (item.image) { %>
+                    <img src="/images/<%= item.image %>" alt="Image" class="product-img" style="width:100px; border-radius:3px;">
+                  <% } %>
+                </td>
+                <td><%= item.product_name %></td>
+                <td>SGD $<%= item.price.toFixed(2) %></td>
+                <td>
+                  <input type="hidden" name="productIds" value="<%= item.product_id %>">
+                  <input class="w3-input w3-border w3-round-small" type="number" name="quantities" value="<%= item.quantity %>" min="1" style="max-width:80px;">
+                </td>
+                <td><strong>SGD $<%= itemTotal.toFixed(2) %></strong></td>
+                <td>
+                  <a href="/cart/delete/<%= item.product_id %>" class="w3-button w3-red w3-small w3-round">Remove</a>
+                </td>
+              </tr>
+            <% }); %>
+            <tr class="w3-light-grey">
+              <td colspan="4" class="w3-right-align w3-large"><strong>Grand Total:</strong></td>
+              <td colspan="2" class="w3-large"><strong>SGD $<%= grandTotal.toFixed(2) %></strong></td>
+            </tr>
+          </tbody>
+        </table>
 
-      <button type="submit" class="btn btn-primary">Update Cart</button>
-    </form>
-  <% } %>
+        <button type="submit" class="w3-button w3-teal w3-round w3-margin-top">Update Cart</button>
+      </form>
+    <% } %>
 
-  <a href="/menu" class="btn btn-secondary mt-3">Continue Shopping</a>
+    <div class="w3-center w3-margin-top">
+      <a href="/menu" class="w3-button w3-light-grey w3-round">Continue Shopping</a>
+    </div>
+  </div>
 </div>
 
-<%- include('partials/footer') %>
+</body>
+</html>

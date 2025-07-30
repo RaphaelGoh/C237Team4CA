@@ -326,26 +326,26 @@ app.get('/admin-messages/delete/:id', checkAuthenticated, checkAdmin, (req, res)
     });
 });
 
-// Cart - Display cart items
-// GET: View Cart
-app.get('/cart', checkAuthenticated, (req, res) => {
-  const userId = req.session.user.userId;
 
-  db.query('SELECT cartId FROM carts WHERE userId = ?', [userId], (err, cartRows) => {
+// Cart - Display cart items
+app.get('/cart', checkAuthenticated, (req, res) => {
+  const userId = req.session.user.id;
+
+  db.query('SELECT id FROM carts WHERE user_id = ?', [userId], (err, cartRows) => {
     if (err) {
-      console.error('Error fetching cartId:', err);
+      console.error('Error fetching cart:', err);
       return res.status(500).send('Database error.');
     }
 
     if (cartRows.length === 0) return res.render('cart', { cart: [] });
 
-    const cartId = cartRows[0].cartId;
+    const cartId = cartRows[0].id;
 
     db.query(
-      `SELECT ci.productId, ci.quantity, p.productName, p.price, p.image
+      `SELECT ci.product_id, ci.quantity, p.productName, p.price, p.image
        FROM cart_items ci
-       JOIN products p ON ci.productId = p.productId
-       WHERE ci.cartId = ?`,
+       JOIN products p ON ci.product_id = p.productId
+       WHERE ci.cart_id = ?`,
       [cartId],
       (err, items) => {
         if (err) {
@@ -358,40 +358,36 @@ app.get('/cart', checkAuthenticated, (req, res) => {
   });
 });
 
-
-// POST: Add to Cart
+// Add to Cart
 app.post('/cart/add/:id', checkAuthenticated, (req, res) => {
   const productId = parseInt(req.params.id);
-  const userId = req.session.user.userId;
+  const userId = req.session.user.id;
 
-  db.query('SELECT cartId FROM carts WHERE userId = ?', [userId], (err, cartRows) => {
+  db.query('SELECT id FROM carts WHERE user_id = ?', [userId], (err, cartRows) => {
     if (err) return res.status(500).send('Database error.');
 
     if (cartRows.length === 0) {
-      db.query('INSERT INTO carts (userId) VALUES (?)', [userId], (err, result) => {
+      db.query('INSERT INTO carts (user_id) VALUES (?)', [userId], (err, result) => {
         if (err) return res.status(500).send('Failed to create cart.');
         const cartId = result.insertId;
         insertOrUpdateCartItem(cartId);
       });
     } else {
-      const cartId = cartRows[0].cartId;
+      const cartId = cartRows[0].id;
       insertOrUpdateCartItem(cartId);
     }
 
     function insertOrUpdateCartItem(cartId) {
       db.query(
-        'SELECT * FROM cart_items WHERE cartId = ? AND productId = ?',
+        'SELECT quantity FROM cart_items WHERE cart_id = ? AND product_id = ?',
         [cartId, productId],
         (err, rows) => {
-          if (err) {
-            console.error('Error checking cart:', err);
-            return res.status(500).send('Error checking cart.');
-          }
+          if (err) return res.status(500).send('Error checking cart.');
 
           if (rows.length > 0) {
             const newQty = rows[0].quantity + 1;
             db.query(
-              'UPDATE cart_items SET quantity = ? WHERE cartId = ? AND productId = ?',
+              'UPDATE cart_items SET quantity = ? WHERE cart_id = ? AND product_id = ?',
               [newQty, cartId, productId],
               err => {
                 if (err) return res.status(500).send('Failed to update cart.');
@@ -400,7 +396,7 @@ app.post('/cart/add/:id', checkAuthenticated, (req, res) => {
             );
           } else {
             db.query(
-              'INSERT INTO cart_items (cartId, productId, quantity) VALUES (?, ?, 1)',
+              'INSERT INTO cart_items (cart_id, product_id, quantity) VALUES (?, ?, 1)',
               [cartId, productId],
               err => {
                 if (err) return res.status(500).send('Failed to add item to cart.');
@@ -414,27 +410,29 @@ app.post('/cart/add/:id', checkAuthenticated, (req, res) => {
   });
 });
 
-
-// POST: Edit Cart Quantities
+// Edit Cart Quantities
 app.post('/cart/edit', checkAuthenticated, (req, res) => {
   const { productIds, quantities } = req.body;
-  const userId = req.session.user.userId;
+  const userId = req.session.user.id;
 
   if (!productIds || !quantities) return res.redirect('/cart');
 
   const ids = Array.isArray(productIds) ? productIds : [productIds];
   const qtys = Array.isArray(quantities) ? quantities : [quantities];
 
-  db.query('SELECT cartId FROM carts WHERE userId = ?', [userId], (err, cartRows) => {
+  db.query('SELECT id FROM carts WHERE user_id = ?', [userId], (err, cartRows) => {
     if (err || cartRows.length === 0) return res.redirect('/cart');
-    const cartId = cartRows[0].cartId;
+    const cartId = cartRows[0].id;
 
     ids.forEach((productId, i) => {
       const qty = parseInt(qtys[i]);
       if (qty > 0) {
         db.query(
-          'UPDATE cart_items SET quantity = ? WHERE cartId = ? AND productId = ?',
-          [qty, cartId, productId]
+          'UPDATE cart_items SET quantity = ? WHERE cart_id = ? AND product_id = ?',
+          [qty, cartId, productId],
+          err => {
+            if (err) console.error('Failed to update quantity for productId', productId);
+          }
         );
       }
     });
@@ -443,18 +441,17 @@ app.post('/cart/edit', checkAuthenticated, (req, res) => {
   });
 });
 
-
-// GET: Delete from Cart
+// Delete Cart Item
 app.get('/cart/delete/:id', checkAuthenticated, (req, res) => {
-  const userId = req.session.user.userId;
+  const userId = req.session.user.id;
   const productId = parseInt(req.params.id);
 
-  db.query('SELECT cartId FROM carts WHERE userId = ?', [userId], (err, cartRows) => {
+  db.query('SELECT id FROM carts WHERE user_id = ?', [userId], (err, cartRows) => {
     if (err || cartRows.length === 0) return res.redirect('/cart');
-    const cartId = cartRows[0].cartId;
+    const cartId = cartRows[0].id;
 
     db.query(
-      'DELETE FROM cart_items WHERE cartId = ? AND productId = ?',
+      'DELETE FROM cart_items WHERE cart_id = ? AND product_id = ?',
       [cartId, productId],
       err => {
         if (err) console.error('Delete failed:', err);
@@ -463,6 +460,7 @@ app.get('/cart/delete/:id', checkAuthenticated, (req, res) => {
     );
   });
 });
+
 
 
 
