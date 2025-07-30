@@ -133,13 +133,6 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-// Inventory
-app.get('/inventory', checkAuthenticated, (req, res) => {
-  db.query('SELECT * FROM products', (err, products) => {
-    if (err) return res.status(500).send('Database error.');
-    res.render('inventory', { products, user: req.session.user });
-  });
-});
 
 // Add Product
 app.get('/addProduct', checkAuthenticated, checkAdmin, (req, res) => {
@@ -156,7 +149,7 @@ app.post('/addProduct', checkAuthenticated, checkAdmin, upload.single('image'), 
       console.error('Error adding product:', err);
       return res.status(500).send('Insert failed.');
     }
-    res.redirect('/inventory');
+    res.redirect('/admin-dashboard');
   });
 });
 

@@ -7,17 +7,17 @@
 </head>
 <body class="p-4">
   <a href="/menu" class="btn btn-outline-secondary mb-3">← Back to Menu</a>
-  <div class="card">
-    <img src="/images/<%= product.image %>" class="card-img-top" style="max-height:300px;object-fit:cover;" onerror="this.src='https://placehold.co/600x300?text=No+Image';">
+  <div class="card mx-auto" style="max-width: 600px;">
+    <img src="/images/<%= product.image %>" class="card-img-top" style="max-height:400px; object-fit:cover;" onerror="this.src='https://placehold.co/600x300?text=No+Image';">
     <div class="card-body">
-      <h3 class="card-title"><%= product.productName %></h3>
+      <h5 class="card-title"><%= product.productName %></h5>
       <p class="card-text">Price: $<%= product.price.toFixed(2) %></p>
-      <p class="card-text"><%= product.description || 'No description available.' %></p>
 
       <form action="/cart/add/<%= product.productId %>" method="POST">
-        <button type="submit" class="btn btn-success">Add to Cart</button>
+        <button type="submit" class="btn btn-success w-100">Add to Cart</button>
       </form>
     </div>
   </div>
 </body>
 </html>
+
